@@ -11,15 +11,15 @@ metagenomes (markers for Se usage and selenoprotein families)
 gives aboslute paths in all folder requirements
 
 example of command line:
-python selenomicrobiome_analysis.py -i input_directory -o output_directory -db database_file
+python3 selenomicrobiome_analysis.py -i input_directory -o output_directory -db database_file 
 
 Options
 -db database folder
 -i input_directory (fna files)
 -o output_directory (if not present will be created)
--S selenoprofiles step only
--T secmarker step only
--I infernal step only
+-S False to not perform selenoprofiles step
+-T False to not perform secmarker step
+-I False to not perform infernal step
 -e e-value for BLAST (default 1e-5)
 -n cpu cores (default 8)                                                                                                  
 -p profiles that selenoprofiles4 need to search (default prokarya)
@@ -33,8 +33,8 @@ Options
 
 def_opt= {'i':'', 'o':'','db':'undefined_DB',
           'S':True, 'T':True, 'I':True,
-          'e':1e-5,  'cpu':8, 'p':'prokarya','gtf':True, 'gff':True,
-          'cm':'~/cm/all_RF00.c.cm', 'sp4_cfg':'~/.selenoprofiles_config.txt'}
+          'e':1e-5,  'n':8, 'p':'prokarya','gtf':True, 'gff':True,
+          'cm':'/users/rg/mserrazanetti/wgs_data/cm/all_RF00.c.cm', 'sp4_cfg':'/users/rg/mserrazanetti/.selenoprofiles_config.txt'}
 
 #########################   REMEMBER TO CHANGE PATH OF CM AND SP4_CONFIG ##########################
 
@@ -71,10 +71,10 @@ def create_folder(path):
 
 def main_function(arg_list):
   
-  filename=arg_list[0] 
-  opt=arg_list[1]
-  marker_list==arg_list[2]
-  fasta_ext=arg_list[3]
+  filename = arg_list[0] 
+  opt = arg_list[1]
+  marker_list = arg_list[2]
+  fasta_ext = arg_list[3]
   id=filename.split('/')[-1].split('.')[0]
 
   output_folder=opt['o']
@@ -89,14 +89,14 @@ def main_function(arg_list):
     selenoprofiles(filename, output_folder, opt['p'], id)
     count_selenoprotein_families(output_folder, id, marker_list, sp_fam_list)
   if opt['T']:
-   print('Starting secmarker for '+id)
+    print('Starting secmarker for '+id)
     with open(output_folder+'/all_secmarker.txt','w') as outfile:
       outfile.write('ID trnasec')
-    secmarker(filename, output_folder, opt['n'], id)
+    secmarker(filename, output_folder, id)
     secmarker_count(filename, output_folder, id)
   if opt['I']:
     print('Starting infernal for '+id)
-    infernal(filename, output_folder, opt['n'], opt['cp'], id)
+    infernal(filename, output_folder, opt['cm'], id)
     clean_infernal_output(output_folder, id)
 
 
@@ -118,7 +118,7 @@ def create_fam_list(sp4_cfg, marker_list):
   return(sp_fam_list)
 
 def selenoprofiles(file, output_folder, profile, id):
-  bbash('conda activate sp4')
+  #bbash('conda activate sp4')
   sp4_folder=output_folder+'/sp4'
   if not os.path.exists(sp4_folder):
     os.mkdir(sp4_folder)
@@ -137,7 +137,7 @@ def selenoprofiles(file, output_folder, profile, id):
   os.chdir(sp4_folder+'/'+id)
   bbash('selenoprofiles -o '+new_output_folder+' -t '+file+' -s '+id+' -p '+profile+' -no_splice '+gff_output+gtf_output)
   os.chdir(start_folder)
-  bbash('conda deactivate')
+  #bbash('conda deactivate')
 
 def count_selenoprotein_families(output_folder, id, marker_list, sp_fam_list):
   for dir, subdirs, files in os.walk(output_folder+'/sp4'):
@@ -177,17 +177,17 @@ def count_selenoprotein_families(output_folder, id, marker_list, sp_fam_list):
 
 #######################         Secmarker part     ####################################
 
-def secmarker(file, output_folder, cpu, id):
-  bbash('conda activate secmarker')
-  if not os.path.exists(output_folder+'/secmarker'):
-    os.mkdir(output_folder+'/secmarker')
+def secmarker(file, output_folder, id):
+  #bbash('conda activate secmarker')
+  #if not os.path.exists(output_folder+'/secmarker'):
+  #  os.mkdir(output_folder+'/secmarker')
   id=file.split('/')[-1].split('.')[0]
   if os.path.exists(output_folder+'/secmarker/'+id): # in this part i remove and re-create the folder if already present, this way i remove possible confusions
     shutil.rmtree(output_folder+'/secmarker/'+id) # remove     
   os.mkdir(output_folder+'/secmarker/'+id) # re-create
-  print('Secmarker.py -t '+file+' -o '+output_folder+'/secmarker/'+id+' -cpu '+cpu)
-  bbash('Secmarker.py -t '+file+' -o '+output_folder+'/secmarker/'+id+' -cpu '+cpu)
-  bbash('conda deactivate')
+  print('secmarker -t '+file+' -o '+output_folder+'/secmarker/'+id+' -cpu 1')
+  bbash('secmarker -t '+file+' -o '+output_folder+'/secmarker/'+id+' -cpu 1')
+  #bbash('conda deactivate')
 
 def secmarker_count(file, output_folder, id):
   with open(output_folder+'/secmarker/'+id+'/trnasec.gff','r') as infile:
@@ -195,20 +195,24 @@ def secmarker_count(file, output_folder, id):
     for line in infile:
       count+=1
   with open(output_folder+'/all_secmarker.txt','w') as outfile:
-    outfile.write(id+' '+count+'\n')
+    outfile.write(id+' '+str(count)+'\n')
 
 ########################       Infernal for rnaseP part    ###########################
 
-def infernal(file, output_folder, cpu, cm_file, id):
-  bbash('conda activate infernal')
-  if not os.path.exists(output_folder+'/infernal'):
-    os.mkdir(output_folder+'/infernal')
+def infernal(file, output_folder, cm_file, id):
+  #bbash('conda activate infernal')
+  #if not os.path.exists(output_folder+'/infernal'):
+  #  os.mkdir(output_folder+'/infernal')
   if os.path.exists(output_folder+'/infernal/'+id): # in this part i remove and re-create the folder if already present, this way i remove possible confusions
     shutil.rmtree(output_folder+'/infernal/'+id) # remove     
   os.mkdir(output_folder+'/infernal/'+id) # re-create
-  print('cmscan --rfam -E 1e-5 --cpu '+cpu+' --tblout '+output_folder+'/infernal/'+id+'/infernal_output_'+id+'.tbl '+cm_file+' '+file)
-  bbash('cmscan --rfam -E 1e-5 --cpu '+cpu+' --tblout '+output_folder+'/infernal/'+id+'/infernal_output_'+id+'.tbl '+cm_file+' '+file)
-  bbash('conda deactivate')
+  print(cm_file)
+  print(id)
+  print(output_folder)
+  print(file)
+  print('cmscan --rfam -E 1e-5 --cpu 1 --tblout '+output_folder+'/infernal/'+id+'/infernal_output_'+id+'.tbl '+cm_file+' '+file)
+  bbash('cmscan --rfam -E 1e-5 --cpu 1 --tblout '+output_folder+'/infernal/'+id+'/infernal_output_'+id+'.tbl '+cm_file+' '+file)
+  #bbash('conda deactivate')
 
 def clean_infernal_output(output_folder, id):
   open(output_folder+'/infernal/'+id+'/infernal_output_'+id+'_cleaned.tbl', 'w').close() #empty the file before writing again on it
@@ -251,10 +255,25 @@ def main(args={}):
   if input_folder[-1]=='/':
     input_folder=input_folder[:-1]
 
-  if multiprocessing.cpu_count() < int(opt['cpu']):
+  output_folder=opt['o']
+  if output_folder[-1]=='/':
+    output_folder=output_folder[:-1]
+  if not os.path.exists(output_folder):
+    os.mkdir(output_folder)
+
+  if multiprocessing.cpu_count() < int(opt['n']):
     cpu=multiprocessing.cpu_count()
   else:
-    cpu=int(opt['cpu'])
+    cpu=int(opt['n'])
+
+  sp4_folder=output_folder+'/sp4'
+  if not os.path.exists(sp4_folder):
+    os.mkdir(sp4_folder)  
+  if not os.path.exists(output_folder+'/secmarker'):
+    os.mkdir(output_folder+'/secmarker')
+  if not os.path.exists(output_folder+'/infernal'):
+    os.mkdir(output_folder+'/infernal')
+
 
   #Orrible solution to create a list of list with many things repeated but it works
   arg_list=[]
@@ -265,7 +284,7 @@ def main(args={}):
 
 
   pool = multiprocessing.Pool(processes=cpu)
-  pool.map(main_function, file_list)
+  pool.map(main_function, arg_list)
   pool.close()
 
 if __name__ == "__main__":
